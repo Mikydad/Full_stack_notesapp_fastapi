@@ -7,9 +7,11 @@ import Login from './auth/Login'
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './auth/ProtectedRoute';
 import PublicRoute from './auth/PublicRoute';
+import AuthContext from './auth/AuthContext';
 function App() {
 
   return (
+    <AuthContext>
     <Routes>
       <Route path='/' element={<HomePage />}></Route>
       <Route path="/signup" element={<Signup />} />
@@ -24,6 +26,8 @@ function App() {
 
       <Route path='/dashboard' element={<ProtectedRoute><Dashboard /></ProtectedRoute>}></Route>
     </Routes>
+    </AuthContext>
+
   )
 }
 
