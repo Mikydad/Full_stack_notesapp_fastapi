@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Users, DollarSign, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { logout } from "../utils/logout"
+import { useContext } from 'react';
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from '../auth//AuthContext';
+
+
 
 const data = [
   { name: "Mon", value: 120 },
@@ -15,8 +21,13 @@ const data = [
 ];
 
 export default function Dashboard() {
+
+      const { setToken } = useContext(AuthContext);
+      const navigate = useNavigate()
+    
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+        <Button onClick={() => logout(setToken, navigate)}>Logout </Button>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-semibold">Dashboard</h1>
         <Button className="rounded-2xl">New Report</Button>
