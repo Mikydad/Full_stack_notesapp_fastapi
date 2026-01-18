@@ -1,4 +1,7 @@
 import React from "react";
+import Signup from "../auth/Signup";
+import { Link } from "react-router-dom";
+
 
 function Navbar() {
   return (
@@ -19,7 +22,7 @@ function Navbar() {
             About Us
           </li>
           <li className="cursor-pointer px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">
-            Account
+                <Link to="/signup">Sign Up</Link>
           </li>
         </ul>
       </div>
