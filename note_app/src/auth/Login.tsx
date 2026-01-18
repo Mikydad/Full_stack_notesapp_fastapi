@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { AuthContexts } from "./AuthContext";
+import { useContext } from "react";
+
 
 function Login() {
+
+  const { setToken } = useContext(AuthContexts);
+
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -30,6 +36,8 @@ function Login() {
 
     //Let's save it to Local Storage.
     localStorage.setItem("token", data.create_access_token)
+
+    setToken(data.create_access_token);
 
     console.log("Login successful:", data);
     // redirect or update UI
