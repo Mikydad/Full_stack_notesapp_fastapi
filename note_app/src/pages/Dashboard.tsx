@@ -2,13 +2,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Users, DollarSign, Activity } from "lucide-react";
 import { motion } from "framer-motion";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { logout } from "../utils/logout"
-import { useContext } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { logout } from "../utils/logout";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from '../auth//AuthContext';
-
-
+import { useAuth } from "../auth/AuthContext";
 
 const data = [
   { name: "Mon", value: 120 },
@@ -21,19 +25,28 @@ const data = [
 ];
 
 export default function Dashboard() {
+  const { role, setToken } = useAuth(); // ✅ hook inside component
+  const navigate = useNavigate();
 
-      const { setToken } = useContext(AuthContext);
-      const navigate = useNavigate()
-    
+  const deleteAllNotes = () => {
+    console.log("Delete Clicked from admin");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-        <Button onClick={() => logout(setToken, navigate)}>Logout </Button>
+      {role === "admin" && (
+        <button onClick={deleteAllNotes}>Delete All Notes</button>
+      )}
+
+      <Button onClick={() => logout(setToken, navigate)}>
+        Logout
+      </Button>
+
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-semibold">Dashboard</h1>
         <Button className="rounded-2xl">New Report</Button>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[
           { title: "Users", value: "12,340", icon: Users },
@@ -61,23 +74,6 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </div>
-
-      {/* Chart */}
-      <Card className="mt-8 rounded-2xl shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="mb-4 text-xl font-semibold">Weekly Performance</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

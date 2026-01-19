@@ -16,7 +16,8 @@ def create_user(user: CreateUser):
 
     user_collection.insert_one({
         "email": user.email,
-        "password": hash_password(user.password)
+        "password": hash_password(user.password),
+        "role": "user"
     })
 
     return {"message:": "User Created"}
@@ -26,20 +27,22 @@ def create_user(user: CreateUser):
 def login_user(user: LoginUser):
     db_user = user_collection.find_one({"email": user.email})
 
-    if not db_user or not verify_password(user.password, db_user["password"]):
+    if not db_user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if not verify_password(user.password, db_user.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    # Get role from database, default to "user" if not present
+    user_role = db_user.get("role", "user")
+
     access_token = create_access_token(
-        data={"sub": user.email},
+        data={"sub": user.email, "role": user_role},
         expires_delta=timedelta(minutes=30)
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "role": user_role}
 
 # @router.post("/login")
 # def login_user(user: LoginUser):
-#     db_user = user_collection.find_one({"email": user.email})
 
-#     if not db_user or not verify_password(user.password, db_user["password"]):
-#         raise HTTPException(401, "Invalid credentials")
-    
     

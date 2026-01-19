@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './auth/ProtectedRoute';
 import PublicRoute from './auth/PublicRoute';
 import { AuthProvider } from './auth/AuthContext';
+import RoleRoute from "./auth/RoleRoute";
 
 function App() {
   return (
