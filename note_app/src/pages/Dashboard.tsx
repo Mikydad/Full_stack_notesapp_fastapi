@@ -13,6 +13,7 @@ import {
 import { logout } from "../utils/logout";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+// import CategoryManager from "../components/CategoryManager";
 
 const data = [
   { name: "Mon", value: 120 },
@@ -73,6 +74,10 @@ export default function Dashboard() {
             </Card>
           </motion.div>
         ))}
+      </div>
+
+      <div className="mt-8">
+        {/* <CategoryManager /> */}
       </div>
     </div>
   );

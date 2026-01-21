@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apps.route_auth import router as auth_router
 from apps.route_notes import router as notes_router
+from apps.route_categories import router as categories_router
 
 app = FastAPI()
 
@@ -15,6 +16,12 @@ app.include_router(
     notes_router,
     prefix="/notes",
     tags=["notes"]
+)
+
+app.include_router(
+    categories_router,
+    prefix="/categories",
+    tags=["categories"]
 )
 
 app.add_middleware(

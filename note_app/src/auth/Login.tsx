@@ -44,7 +44,7 @@ function Login() {
       }
 
       setAuth(data.access_token, data.role || "user");
-      navigate("/dashboard");
+      navigate("/category");
     } catch (err) {
       if (err instanceof TypeError && err.message.includes("fetch")) {
         setError("Cannot connect to server. Please check if the backend is running on http://localhost:8000");

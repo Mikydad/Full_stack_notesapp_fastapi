@@ -7,6 +7,9 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import PublicRoute from './auth/PublicRoute';
 import { AuthProvider } from './auth/AuthContext';
 import RoleRoute from "./auth/RoleRoute";
+import CategoryPage from "./pages/CategoryPage";
+import CategoryDetail from "./components/CategoryDetail";
+import NoteDetailPage from "./pages/NoteDetailPage";
 
 function App() {
   return (
@@ -23,10 +26,26 @@ function App() {
           }
         />
         <Route
-          path='/dashboard'
+          path='/category'
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <CategoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/category/:categoryId'
+          element={
+            <ProtectedRoute>
+              <CategoryDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/note/:noteId'
+          element={
+            <ProtectedRoute>
+              <NoteDetailPage />
             </ProtectedRoute>
           }
         />
