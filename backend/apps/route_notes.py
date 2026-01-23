@@ -39,6 +39,24 @@ def get_notes_by_category(category_id: str, user: dict = Depends(get_current_use
     })
     return [serialize_note(note) for note in result]
 
+@router.get("/notes/{note_id}", response_model=NoteOut)
+def get_note(note_id: str, user: dict = Depends(get_current_user)):
+    """Get a single note by ID"""
+    try:
+        note_object_id = ObjectId(note_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid note ID format")
+    
+    note = note_collection.find_one({
+        "_id": note_object_id,
+        "user_email": user["username"]
+    })
+    
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    return serialize_note(note)
+
 @router.post("/notes", response_model=NoteOut)
 def create_note(note: CreateNote, user: dict = Depends(get_current_user)):
     """Create a new note"""
