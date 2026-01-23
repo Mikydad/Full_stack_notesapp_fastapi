@@ -38,7 +38,7 @@ const CategoryDetail = ({
       setLoading(false);
     }
   }, [categoryId, token, authLoading]);
-
+ 
   const loadData = async () => {
     if (!token || !categoryId) {
       setError("Missing authentication or category ID");

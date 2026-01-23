@@ -23,6 +23,22 @@ def get_notes(user: dict = Depends(get_current_user)):
     result = note_collection.find({"user_email": user["username"]})
     return [serialize_note(note) for note in result]
 
+@router.get("/notes/category/{category_id}", response_model=list[NoteOut])
+def get_notes_by_category(category_id: str, user: dict = Depends(get_current_user)):
+    """Get all notes for a specific category"""
+    # Convert category_id to ObjectId for querying
+    # Filter by both category_id and user_email for security
+    try:
+        category_object_id = ObjectId(category_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid category ID format")
+    
+    result = note_collection.find({
+        "category_id": category_object_id,
+        "user_email": user["username"]
+    })
+    return [serialize_note(note) for note in result]
+
 @router.post("/notes", response_model=NoteOut)
 def create_note(note: CreateNote, user: dict = Depends(get_current_user)):
     """Create a new note"""
@@ -38,6 +54,9 @@ def create_note(note: CreateNote, user: dict = Depends(get_current_user)):
     
     note_data = note.dict()
     note_data["user_email"] = user["username"]  # Associate note with user
+    # Convert category_id to ObjectId if provided
+    if note.category_id:
+        note_data["category_id"] = ObjectId(note.category_id)
     
     result = note_collection.insert_one(note_data)
     created_note = note_collection.find_one({"_id": result.inserted_id})
@@ -64,9 +83,14 @@ def update_note(note_id: str, note: CreateNote, user: dict = Depends(get_current
         if not category:
             raise HTTPException(status_code=404, detail="Category not found")
     
+    # Prepare update data with category_id as ObjectId if provided
+    update_data = note.dict()
+    if note.category_id:
+        update_data["category_id"] = ObjectId(note.category_id)
+    
     note_collection.update_one(
         {"_id": ObjectId(note_id)},
-        {"$set": note.dict()}
+        {"$set": update_data}
     )
     updated_note = note_collection.find_one({"_id": ObjectId(note_id)})
     return serialize_note(updated_note)
