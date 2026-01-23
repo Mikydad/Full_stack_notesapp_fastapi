@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";  // Add useLocation
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { getNotesByCategory, createNote } from "../api/notes";
+import type { Note } from "../api/notes";
+import { updateCategory as updateCategoryAPI, getCategories } from "../api/categories";
 import NoteCard from "./NoteCard";
 import { Edit2, Check, X, ArrowLeft } from "lucide-react";
 
@@ -12,65 +16,171 @@ const CategoryDetail = ({
 }: CategoryDetailProps) => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();  // Add this line
+  const location = useLocation();
+  const { token, loading: authLoading } = useAuth(); // ✅ Get authLoading
   const [isEditing, setIsEditing] = useState(false);
   const [categoryName, setCategoryName] = useState("");
- 
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [editName, setEditName] = useState("");
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteDescription, setNoteDescription] = useState("");
 
-  // Fetch category and notes when component mounts
+  // Fetch category name and notes
   useEffect(() => {
-    if (categoryId) {
-      // Get category name from navigation state (passed from CategoryPage)
+    // ✅ Wait for auth to load AND token to exist
+    if (!authLoading && categoryId && token) {
+      loadData();
+    } else if (!authLoading && !token) {
+      setError("Please login to view category");
+      setLoading(false);
+    }
+  }, [categoryId, token, authLoading]);
+
+  const loadData = async () => {
+    if (!token || !categoryId) {
+      setError("Missing authentication or category ID");
+      setLoading(false);
+      return;
+    }
+    
+    setLoading(true);
+    setError("");
+    try {
+      // ✅ Try to get category name from navigation state first
       const state = location.state as { categoryName?: string } | null;
-      const nameFromState = state?.categoryName;
-      
-      console.log("Location state:", location.state); // Debug log
-      console.log("Category name from state:", nameFromState); // Debug log
-      
-      if (nameFromState) {
-        setCategoryName(nameFromState);
-        setEditName(nameFromState);
+      if (state?.categoryName) {
+        setCategoryName(state.categoryName);
+        setEditName(state.categoryName);
       } else {
-        // Fallback: TODO - Fetch from API if not in state
-        setCategoryName("Category Name");
-        setEditName("Category Name");
+        // ✅ If not in state (page refresh), fetch from API
+        try {
+          const categories = await getCategories(token);
+          const category = categories.find(cat => cat.id === categoryId);
+          if (category) {
+            setCategoryName(category.name);
+            setEditName(category.name);
+          } else {
+            setError("Category not found");
+            setLoading(false);
+            return;
+          }
+        } catch (catErr) {
+          console.error("Error fetching category:", catErr);
+          setError(catErr instanceof Error ? catErr.message : "Failed to load category");
+          setLoading(false);
+          return;
+        }
       }
       
-      // TODO: Fetch notes from API
-      setNotes([]);
+      // Fetch notes for this category
+      try {
+        const notesData = await getNotesByCategory(token, categoryId);
+        // ✅ Ensure notesData is an array
+        setNotes(Array.isArray(notesData) ? notesData : []);
+      } catch (notesErr) {
+        console.error("Error fetching notes:", notesErr);
+        // Don't set error for notes, just log it and show empty state
+        setNotes([]);
+      }
+    } catch (err) {
+      console.error("Load data error:", err);
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      setLoading(false);
     }
-  }, [categoryId, location]);
-
-  const handleSave = () => {
-    if (categoryId && editName.trim() && editName !== categoryName) {
-      onUpdateCategory?.(categoryId, editName.trim());
-      setCategoryName(editName.trim());
-    }
-    setIsEditing(false);
   };
 
   const handleCancel = () => {
     setEditName(categoryName);
     setIsEditing(false);
   };
-  const [notes,setNotes] = useState<Array<{
-    id: string;
-    title: string;
-    description: string;
-  }>>([]);
-  const [showNoteForm, setShowNoteForm] = useState(false);
-  const [noteTitle, setNoteTitle] = useState("");
-  const [noteDescription, setNoteDescription] = useState("");
 
-  const handleAddNote = () => {
-    if (noteTitle.trim() && noteDescription.trim()) {
-      setNotes([...notes, { id: Date.now().toString(), title: noteTitle, description: noteDescription }]);
+  const handleSave = async () => {
+    if (!token || !categoryId || !editName.trim() || editName === categoryName) {
+      setIsEditing(false);
+      return;
+    }
+
+    setError("");
+    try {
+      await updateCategoryAPI(token, categoryId, { name: editName.trim() });
+      setCategoryName(editName.trim());
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update category");
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!token || !categoryId || !noteTitle.trim() || !noteDescription.trim()) return;
+
+    setError("");
+    try {
+      await createNote(token, {
+        note_title: noteTitle.trim(),
+        note_desc: noteDescription.trim(),
+        category_id: categoryId
+      });
       setNoteTitle("");
       setNoteDescription("");
       setShowNoteForm(false);
+      await loadData(); // Refresh notes
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create note");
     }
   };
+
+  // ✅ Show loading while auth or data is loading
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="text-gray-600">Loading category...</div>
+      </div>
+    );
+  }
+
+  // ✅ Handle missing categoryId
+  if (!categoryId) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          <button
+            onClick={() => navigate('/category')}
+            className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Categories</span>
+          </button>
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+            Category ID is missing. Please go back and select a category.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Show error if there's an error and no category name
+  if (error && !categoryName) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          <button
+            onClick={() => navigate('/category')}
+            className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Categories</span>
+          </button>
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -83,6 +193,13 @@ const CategoryDetail = ({
           <ArrowLeft className="w-5 h-5" />
           <span>Back to Categories</span>
         </button>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Header Section with Editable Category Title */}
         <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -112,7 +229,9 @@ const CategoryDetail = ({
               </div>
             ) : (
               <>
-                <h1 className="text-3xl font-semibold text-gray-900">{categoryName}</h1>
+                <h1 className="text-3xl font-semibold text-gray-900">
+                  {categoryName || "Loading..."}
+                </h1>
                 <button
                   onClick={() => setIsEditing(true)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -125,70 +244,49 @@ const CategoryDetail = ({
           </div>
         </div>
 
-        {/* Add Note Section */}
-        <div className="mb-6">
+        {/* Add Note Form */}
+        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           {!showNoteForm ? (
             <button
               onClick={() => setShowNoteForm(true)}
-              className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm flex items-center gap-2"
+              className="w-full py-3 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Note
+              + Add New Note
             </button>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-gray-900">Create New Note</h2>
-                  <button
-                    onClick={() => {
-                      setShowNoteForm(false);
-                      setNoteTitle("");
-                      setNoteDescription("");
-                    }}
-                    className="p-1 hover:bg-gray-100 rounded transition"
-                  >
-                    <X className="w-5 h-5 text-gray-500" />
-                  </button>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <input
-                    type="text"
-                    value={noteTitle}
-                    onChange={(e) => setNoteTitle(e.target.value)}
-                    placeholder="Note Title"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-                    autoFocus
-                  />
-                  <textarea
-                    value={noteDescription}
-                    onChange={(e) => setNoteDescription(e.target.value)}
-                    placeholder="Note Description"
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition resize-none"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleAddNote}
-                      disabled={!noteTitle.trim() || !noteDescription.trim()}
-                      className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      Create Note
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowNoteForm(false);
-                        setNoteTitle("");
-                        setNoteDescription("");
-                      }}
-                      className="px-6 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Note Title"
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              />
+              <textarea
+                placeholder="Note Description"
+                value={noteDescription}
+                onChange={(e) => setNoteDescription(e.target.value)}
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddNote}
+                  disabled={!noteTitle.trim() || !noteDescription.trim()}
+                  className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  Create Note
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNoteForm(false);
+                    setNoteTitle("");
+                    setNoteDescription("");
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           )}
@@ -207,13 +305,13 @@ const CategoryDetail = ({
                 <NoteCard
                   key={note.id}
                   id={note.id}
-                  title={note.title}
-                  description={note.description}
+                  title={note.note_title}
+                  description={note.note_desc}
                   onClick={() => {
                     navigate(`/note/${note.id}`, {
                       state: {
-                        title: note.title,
-                        description: note.description,
+                        title: note.note_title,
+                        description: note.note_desc,
                         categoryId: categoryId,
                         categoryName: categoryName
                       }
@@ -224,6 +322,7 @@ const CategoryDetail = ({
             </div>
           )}
         </div>
+              
       </div>
     </div>
   );

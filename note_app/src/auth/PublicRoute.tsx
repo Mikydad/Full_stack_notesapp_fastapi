@@ -1,15 +1,22 @@
 import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useAuth } from "./AuthContext";
 
-import React from 'react'
+function PublicRoute({ children }: { children: ReactNode }) {
+  const { isLoggedIn, loading } = useAuth();
 
-function PublicRoute({children}: {children: ReactNode}) {
-    const token = localStorage.getItem("token");
+  // Wait for auth to finish loading before making redirect decisions
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-    if(token){
-        return <Navigate to="/dashboard" replace />;
-    }
-  return children;
+  // If user is already logged in, redirect to /category
+  if (isLoggedIn) {
+    return <Navigate to="/category" replace />;
+  }
+
+  // User is not logged in, show the public route (login/signup forms)
+  return <>{children}</>;
 }
 
-export default PublicRoute
+export default PublicRoute;
